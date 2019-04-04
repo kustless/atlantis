@@ -5,5 +5,3 @@ bases:
 patchesStrategicMerge:
 - statefulset-atlantis-serviceName.yaml
 - statefulset-atlantis-env.yaml
-resources:
-- namespace-atlantis.yaml
