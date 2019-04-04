@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: atlantis
+    release: atlantis
+  name: atlantis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: atlantis
+      release: atlantis
+  template:
+    metadata:
+      labels:
+        app: atlantis
+        release: atlantis
+    spec:
+      containers:
+      - args:
+        - server
+        env:
+        - name: ATLANTIS_DATA_DIR
+          value: /atlantis-data
+        - name: ATLANTIS_REPO_WHITELIST
+          value: <replace-me>
+        - name: ATLANTIS_PORT
+          value: "4141"
+        - name: ATLANTIS_ATLANTIS_URL
+          value: http://chart-example.local
+        image: runatlantis/atlantis:v0.6.0
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /healthz
+            port: 4141
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 60
+          successThreshold: 1
+          timeoutSeconds: 5
+        name: atlantis
+        ports:
+        - containerPort: 4141
+          name: atlantis
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /healthz
+            port: 4141
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 60
+          successThreshold: 1
+          timeoutSeconds: 5
+        resources:
+          limits:
+            cpu: 100m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 1Gi
+        volumeMounts:
+        - mountPath: /atlantis-data
+          name: atlantis-data
+      securityContext:
+        fsGroup: 1000
+      serviceAccountName: atlantis
+      volumes: []
+  volumeClaimTemplates:
+  - metadata:
+      name: atlantis-data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 5Gi

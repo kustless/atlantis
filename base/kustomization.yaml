@@ -1,0 +1,10 @@
+kind: ""
+apiversion: ""
+resources:
+- ingress.yaml
+- secret-webhook.yaml
+- service.yaml
+- serviceaccount.yaml
+- statefulset.yaml
+- tests/test-atlantis-configmap.yaml
+- tests/test-atlantis-pod.yaml

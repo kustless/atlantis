@@ -1,0 +1,16 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  labels:
+    app: atlantis
+    release: atlantis
+  name: atlantis
+spec:
+  rules:
+  - host: chart-example.local
+    http:
+      paths:
+      - backend:
+          serviceName: atlantis
+          servicePort: 80
+        path: /

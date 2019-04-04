@@ -1,0 +1,185 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app: atlantis
+    release: atlantis
+  name: atlantis
+---
+apiVersion: v1
+data:
+  run.sh: |-
+    @test "Atlantis UI is available" {
+      ATLANTIS_URL=http://atlantis.default.svc.cluster.local:80
+      echo "Trying Atlantis at: $ATLANTIS_URL"
+      curl $ATLANTIS_URL
+    }
+kind: ConfigMap
+metadata:
+  name: atlantis-tests
+---
+apiVersion: v1
+data: null
+kind: Secret
+metadata:
+  labels:
+    app: atlantis
+    release: atlantis
+  name: atlantis-webhook
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: atlantis
+    release: atlantis
+  name: atlantis
+spec:
+  ports:
+  - name: atlantis
+    port: 80
+    protocol: TCP
+    targetPort: 4141
+  selector:
+    app: atlantis
+    release: atlantis
+  type: NodePort
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: atlantis
+    release: atlantis
+  name: atlantis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: atlantis
+      release: atlantis
+  template:
+    metadata:
+      labels:
+        app: atlantis
+        release: atlantis
+    spec:
+      containers:
+      - args:
+        - server
+        env:
+        - name: ATLANTIS_DATA_DIR
+          value: /atlantis-data
+        - name: ATLANTIS_REPO_WHITELIST
+          value: <replace-me>
+        - name: ATLANTIS_PORT
+          value: "4141"
+        - name: ATLANTIS_ATLANTIS_URL
+          value: http://chart-example.local
+        image: runatlantis/atlantis:v0.6.0
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /healthz
+            port: 4141
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 60
+          successThreshold: 1
+          timeoutSeconds: 5
+        name: atlantis
+        ports:
+        - containerPort: 4141
+          name: atlantis
+        readinessProbe:
+          failureThreshold: 5
+          httpGet:
+            path: /healthz
+            port: 4141
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 60
+          successThreshold: 1
+          timeoutSeconds: 5
+        resources:
+          limits:
+            cpu: 100m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 1Gi
+        volumeMounts:
+        - mountPath: /atlantis-data
+          name: atlantis-data
+      securityContext:
+        fsGroup: 1000
+      serviceAccountName: atlantis
+      volumes: []
+  volumeClaimTemplates:
+  - metadata:
+      name: atlantis-data
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 5Gi
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  labels:
+    app: atlantis
+    release: atlantis
+  name: atlantis
+spec:
+  rules:
+  - host: chart-example.local
+    http:
+      paths:
+      - backend:
+          serviceName: atlantis
+          servicePort: 80
+        path: /
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    helm.sh/hook: test-success
+  name: atlantis-ui-test-da9tx
+spec:
+  containers:
+  - command:
+    - /tools/bats/bats
+    - -t
+    - /tests/run.sh
+    image: lachlanevenson/k8s-kubectl:v1.4.8-bash
+    name: atlantis-ui-test
+    volumeMounts:
+    - mountPath: /tests
+      name: tests
+      readOnly: true
+    - mountPath: /tools
+      name: tools
+  initContainers:
+  - command:
+    - bash
+    - -c
+    - |
+      set -ex
+      # copy bats to tools dir
+      cp -R /usr/local/libexec/ /tools/bats/
+    image: dduportal/bats:0.4.0
+    name: test-framework
+    volumeMounts:
+    - mountPath: /tools
+      name: tools
+  restartPolicy: Never
+  volumes:
+  - configMap:
+      name: atlantis-tests
+    name: tests
+  - emptyDir: {}
+    name: tools
