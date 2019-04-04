@@ -1,0 +1,12 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: atlantis
+spec:
+  template:
+    spec:
+      containers:
+      - env:
+        - name: ATLANTIS_REPO_WHITELIST
+          value: '*'
+        name: atlantis
